@@ -1,0 +1,32 @@
+[package]
+name = "rust_cloud_drive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "*", features = ["multipart"] }
+axum-extra = { version = "*", features = ["cookie"] }
+chardetng = "*"
+chrono = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+sevenz-rust = { version = "*", features = ["compress"] }
+sha2 = "*"
+sqlx = { version = "*", features = ["runtime-tokio", "sqlite"] }
+time = "*"
+tokio = { version = "*", features = ["macros", "rt-multi-thread", "fs", "io-util", "net"] }
+uuid = { version = "*", features = ["v4", "serde"] }
+
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+debug = false
+debug-assertions = false
+overflow-checks = false
+incremental = false
+rpath = false
+
