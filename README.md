@@ -1,126 +1,163 @@
 # RustDrive ☁️
 
-RustDrive 是一个使用 Rust 编写的轻量级自托管云盘项目，也可以叫“Rust 橘红云盘”。项目基于 Axum、Tokio 和 SQLite 构建，后端、路由、接口和前端页面集中在一个 Rust 应用中，结构直接、依赖简单，适合个人服务器、家庭 NAS、局域网文件管理、小型团队临时文件共享，以及 Rust Web 项目学习。
+RustDrive is a lightweight self-hosted cloud drive written in Rust. It is built with Axum, Tokio, SQLx, and SQLite, and provides a simple private file storage system with user accounts, folder management, file sharing, browser preview, and compressed downloads.
 
-RustDrive 的目标不是做一个复杂笨重的企业网盘，而是提供一套开箱即用的私有文件管理能力：上传、下载、列出、创建文件夹、移动、重命名、删除、批量操作、压缩下载、公开分享、分享浏览，以及文本、图片、PDF、视频、音频等内容的在线查看或播放。
+The project is designed for people who want a small, practical cloud drive without running a full enterprise storage stack. It stores metadata in SQLite and stores uploaded file objects on the local filesystem, so it does not require MySQL, PostgreSQL, Redis, S3, or any external object storage service.
 
-当前版本默认以 HTTP 方式监听本机 `127.0.0.1:3000`。项目本身不包含证书申请、证书续期、自动 HTTPS 或 TLS 终止功能。如果需要 HTTPS，建议在 RustDrive 前面部署 Nginx、Caddy、Traefik 等反向代理，由反向代理统一处理证书和 HTTPS 访问。
+## Features
 
-## 功能亮点
+### File and folder management
 
-RustDrive 支持完整的文件管理能力。用户登录后可以上传文件、下载文件、查看目录列表、创建文件夹、重命名文件或文件夹、移动文件或文件夹、删除文件或文件夹，并支持多选后的批量删除、批量移动和批量下载。文件和文件夹按多级目录组织，适合长期管理个人资料、项目文件、图片、视频、文档和临时共享内容。
+RustDrive supports common cloud-drive operations, including file upload, file download, file listing, folder creation, renaming, moving, and deletion. Files and folders are organized as a multi-level directory tree, making it suitable for personal documents, project files, media files, temporary archives, and LAN file sharing.
 
-项目支持 7z 压缩下载。用户可以选择多个文件或文件夹，将选中的内容打包为 7z 压缩包后一次性下载；分享页面也支持对分享目录中的选中内容进行 7z 批量下载。压缩逻辑使用 `sevenz-rust`，并按最高压缩思路处理批量打包，适合下载大量零散文件或完整目录树。
+The file list keeps folders before files and sorts entries by name. Each file record stores metadata such as name, size, MIME type, storage key, creation time, and update time. The app also includes breadcrumb navigation so users can move through nested folders more easily.
 
-上传流程支持分片写入、文件大小统计、MIME 类型识别、文件名校验和同名文件处理。对于同名上传，项目会进行文件内容校验与去重判断：如果同名文件内容一致，可以直接复用已有文件记录，避免重复保存；如果同名但内容不同，则自动处理文件名冲突，避免覆盖原文件。这个逻辑适合在浏览器上传文件夹或批量上传时使用，能减少重复文件带来的混乱。
+### Upload handling
 
-项目支持公开分享。用户可以为单个文件或整个文件夹创建分享链接，也可以取消分享。分享访问是只读的，外部访问者不需要登录即可浏览分享内容、下载文件、查看分享目录、进入子目录、预览支持的文件，并且可以对选中的分享内容进行 7z 批量下载。
+The upload flow writes incoming files in chunks instead of loading the whole file into memory at once. During upload, RustDrive records the final file size, detects the MIME type, validates the file name, and stores the file as an object under the local object directory.
 
-在线预览是 RustDrive 的重要功能之一。普通文件页面和分享页面都支持在线查看文本文件，部分文本文件还支持在线编辑和保存；图片、PDF 等可以直接预览；视频文件可以在线播放；音频文件可以在线播放。对于临时查看日志、配置文件、说明文档、视频素材或音频文件，这比下载后再打开更方便。
+RustDrive also handles same-name uploads carefully. If a file with the same name already exists, the app compares the uploaded content and can reuse the existing file record when the content is identical. If the name is the same but the content is different, RustDrive resolves the conflict safely instead of overwriting the existing file.
 
-项目使用 SQLite 保存用户、会话、文件节点、分享关系等元数据，上传的文件对象保存在本地对象目录中，压缩包等临时文件保存在临时目录中。部署时不需要额外安装 MySQL、PostgreSQL、Redis 或对象存储服务，复制一个可执行文件并保留数据目录即可运行。
+### Hash verification and duplicate detection
 
-## 主要功能
+RustDrive uses SHA-256 hashing to compare uploaded file content. This allows the app to detect duplicate content during same-name upload handling and avoid unnecessary duplicate records when the uploaded file is already present.
 
-### 用户与会话
+This is especially useful when uploading folders or uploading many files from a browser, where repeated files and name conflicts are common.
 
-- 用户注册
-- 用户登录
-- 用户退出
-- Cookie 会话管理
-- 用户根目录自动创建
+### 7z compressed downloads
 
-### 文件与目录管理
+RustDrive supports downloading selected files and folders as a single `.7z` archive. Users can select multiple files, multiple folders, or a mixed set of files and folders, then download everything as one compressed archive.
 
-- 文件上传
-- 文件下载
-- 文件列表浏览
-- 多级目录管理
-- 文件夹创建
-- 文件重命名
-- 文件夹重命名
-- 文件移动
-- 文件夹移动
-- 文件删除
-- 文件夹删除
-- 面包屑路径导航
-- 同目录下文件夹优先排序
-- 同名文件和同名目录冲突处理
-- 文件 MIME 类型识别
-- 上传文件大小记录
-- 上传内容哈希校验与去重判断
+The compression feature is implemented with `sevenz-rust` and LZMA-based 7z writing. It is useful for downloading many small files at once, exporting a full folder tree, or sharing a clean packaged archive with others.
 
-### 批量操作
+### Public sharing
 
-- 多选文件
-- 多选文件夹
-- 批量删除
-- 批量移动
-- 批量下载
-- 文件和目录混合打包
-- 7z 压缩包下载
-- 最高压缩打包策略
-- 临时压缩文件目录管理
+RustDrive supports public sharing for both files and folders. A logged-in user can create or cancel a share link for a file or folder, and shared content can be accessed through a read-only public page.
 
-### 在线查看与编辑
+For shared files, visitors can download the file or preview it directly in the browser when the file type is supported. For shared folders, visitors can browse child folders, open files, download individual items, and download selected shared content as a `.7z` archive.
 
-- 文本文件在线查看
-- 文本文件在线编辑
-- 文本内容保存
-- 文本编码检测
-- 图片在线预览
-- PDF 在线预览
-- 视频在线播放
-- 音频在线播放
-- 根据文件类型自动选择预览方式
+### Online preview
 
-### 分享能力
+RustDrive includes browser-based preview for common file types. Text files can be viewed online, images and PDFs can be opened in the browser, videos can be played online, and audio files can be streamed directly from the share page or the private file view.
 
-- 文件公开分享
-- 文件夹公开分享
-- 分享链接创建
-- 分享链接取消
-- 分享列表管理
-- 分享页面只读访问
-- 分享文件下载
-- 分享文件在线预览
-- 分享文本在线查看
-- 分享视频在线播放
-- 分享音频在线播放
-- 分享目录浏览
-- 分享子目录浏览
-- 分享内容面包屑导航
-- 分享内容多选
-- 分享内容 7z 批量下载
+The app also includes text encoding detection for reading text files more reliably. Text files have size limits for viewing and editing to avoid accidentally opening very large files in the browser.
 
-### 存储与部署
+### Text editing
 
-- SQLite 元数据存储
-- 本地对象存储
-- 本地临时目录
-- 单机部署
-- 无外部数据库依赖
-- 无 Redis 依赖
-- 无对象存储服务依赖
-- Release 构建体积优化
-- 适合反向代理部署
+In addition to viewing text files, RustDrive supports editing and saving text files from the browser for supported text content. This makes it convenient for quick edits to notes, configuration files, logs, scripts, and small documents without downloading and re-uploading the file.
 
-## 技术栈
+### Batch operations
 
-RustDrive 使用 Rust 2021 Edition 开发，主要依赖包括：
+RustDrive supports multi-selection in the file manager. Users can select multiple files or folders and perform batch operations such as deletion, moving, and compressed download.
 
-- `axum`：Web 框架和路由
-- `tokio`：异步运行时、异步文件 IO、网络监听
-- `sqlx`：SQLite 数据访问
-- `serde` / `serde_json`：请求与响应序列化
-- `axum-extra`：Cookie 支持
-- `uuid`：用户、节点、对象、分享等 ID 生成
-- `chrono` / `time`：时间处理
-- `sevenz-rust`：7z 压缩下载
-- `sha2`：上传内容哈希校验和去重判断
-- `chardetng`：文本编码检测
+Batch download also works for shared folders, allowing public visitors to package selected shared items into one `.7z` archive.
 
-## 项目结构
+### Local storage design
+
+RustDrive uses a simple local storage layout:
+
+```text
+drive_data/
+├── drive.sqlite3
+├── objects/
+└── tmp/
+```
+
+`drive.sqlite3` stores users, sessions, file nodes, folder nodes, and share records. `objects/` stores uploaded file objects. `tmp/` stores temporary files such as generated 7z archives.
+
+For backup or migration, copy the entire `drive_data` directory. The database and object directory should be kept together.
+
+## Main capabilities
+
+### User system
+
+- User registration
+- User login
+- User logout
+- Cookie-based sessions
+- Automatic root folder creation for each user
+
+### File manager
+
+- Upload files
+- Download files
+- Create folders
+- Browse folders
+- Rename files and folders
+- Move files and folders
+- Delete files and folders
+- Multi-level directory tree
+- Breadcrumb navigation
+- Same-name conflict handling
+- MIME type detection
+- File size tracking
+- SHA-256 content comparison
+
+### Batch tools
+
+- Multi-select files
+- Multi-select folders
+- Batch delete
+- Batch move
+- Batch download
+- Mixed file and folder archive export
+- 7z compressed archive generation
+
+### Preview and editing
+
+- Text file preview
+- Text file editing
+- Text file saving
+- Text encoding detection
+- Image preview
+- PDF preview
+- Video playback
+- Audio playback
+- Preview support in both private and public share pages
+
+### Sharing
+
+- Share files
+- Share folders
+- Cancel share links
+- Manage share list
+- Public read-only share pages
+- Browse shared folders
+- Browse shared subfolders
+- Download shared files
+- Preview shared files
+- View shared text files
+- Play shared video files
+- Play shared audio files
+- Download selected shared items as 7z
+
+### Storage
+
+- SQLite metadata storage
+- Local filesystem object storage
+- Local temporary archive storage
+- No external database required
+- No Redis required
+- No external object storage required
+
+## Tech stack
+
+RustDrive is built with:
+
+- Rust 2021
+- Axum
+- Tokio
+- SQLx
+- SQLite
+- Serde
+- axum-extra
+- UUID
+- SHA-256 via `sha2`
+- 7z compression via `sevenz-rust`
+- Text encoding detection via `chardetng`
+- Chrono and time utilities
+
+## Project structure
 
 ```text
 RustDrive/
@@ -131,108 +168,79 @@ RustDrive/
     └── main.rs
 ```
 
-## 快速开始
+## Quick start
 
-克隆项目：
+Clone the repository:
 
 ```bash
 git clone https://github.com/wangyifan349/RustDrive.git
 cd RustDrive
 ```
 
-编译：
+Build the project:
 
 ```bash
 cargo build --release
 ```
 
-运行：
+Run the project:
 
 ```bash
 cargo run --release
 ```
 
-默认访问地址：
+After startup, open the local address printed in the terminal. Register a user account first, then you can start uploading, managing, previewing, sharing, and downloading files.
 
-```text
-http://127.0.0.1:3000
-```
+## Backup
 
-首次打开后可以注册用户。注册成功后系统会自动创建用户根目录，然后即可开始上传、管理和分享文件。
-
-## 数据目录
-
-程序运行后会在本地创建 `drive_data` 数据目录，用来保存 SQLite 数据库、上传文件对象和临时压缩文件。
+RustDrive keeps its runtime data under `drive_data`. For a full backup, copy the entire directory:
 
 ```text
 drive_data/
-├── drive.sqlite3
-├── objects/
-└── tmp/
 ```
 
-其中：
+Do not back up only the database or only the object directory. The SQLite database and stored objects must stay consistent with each other.
 
-- `drive.sqlite3` 保存用户、会话、文件节点、分享关系等元数据；
-- `objects/` 保存实际上传的文件对象；
-- `tmp/` 保存 7z 批量下载时生成的临时压缩文件。
+## Use cases
 
-正式使用时请定期备份整个 `drive_data` 目录。只备份数据库或只备份对象目录都不完整，迁移或恢复时应保持两者一致。
+RustDrive is suitable for:
 
-## HTTPS 说明
+- Personal self-hosted cloud storage
+- Home NAS file management
+- LAN file sharing
+- Temporary file distribution
+- Small team file exchange
+- Project document storage
+- Media preview and sharing
+- Folder packaging and archive download
+- Rust web development learning
+- Lightweight private file server experiments
 
-当前版本没有内置证书功能，也不会自动申请或加载 TLS 证书。程序默认启动 HTTP 服务：
+## Possible future improvements
 
-```text
-http://127.0.0.1:3000
-```
+- Admin dashboard
+- User storage quota
+- Share expiration time
+- Share password protection
+- File search
+- Recycle bin
+- WebDAV support
+- Resumable upload
+- More detailed permission control
+- External object storage backend
+- Docker deployment files
 
-如果需要公网访问或 HTTPS，推荐使用反向代理。例如可以使用 Caddy 自动申请 HTTPS 证书，或使用 Nginx / Traefik 统一处理 TLS，然后把请求转发到 RustDrive 的本地 HTTP 服务。
+## Sponsor ❤️
 
-## 适用场景
+If RustDrive is useful to you, sponsorship is welcome and appreciated. It helps support maintenance, bug fixes, improvements, and future features.
 
-RustDrive 适合以下场景：
-
-- 个人自托管云盘
-- 家庭 NAS 文件管理
-- 局域网文件共享
-- 小型团队临时文件分发
-- 项目资料、日志、文档临时查看
-- 视频和音频素材临时预览
-- 文件夹打包下载
-- Rust Web 项目学习
-- 轻量级私有文件服务二次开发
-
-如果你需要的是一个依赖少、容易编译、容易部署、支持分享和在线预览的 Rust 云盘项目，RustDrive 可以作为一个实用的基础版本继续扩展。
-
-## 后续可扩展方向
-
-后续可以继续加入这些能力：
-
-- 管理员后台
-- 用户容量限制
-- 分享过期时间
-- 分享访问密码
-- WebDAV 支持
-- 文件搜索
-- 回收站
-- 断点续传
-- 多用户权限管理
-- 外部对象存储适配
-- Docker 部署文件
-- 反向代理示例配置
-
-## 赞助作者 ❤️
-
-如果 RustDrive 对你有帮助，欢迎赞助作者。你的赞助会成为我继续维护项目、修复问题、优化体验和增加新功能的动力。
-
-| 类型 | 地址 |
+| Type | Address |
 | --- | --- |
 | Bitcoin (BTC) | `bc1qxqfhumpqtnxrznkx9r4xsp8m6zsedtgusjns7p` |
 | Ethereum (ETH) | `0x2d92f9e4d8ac7effa9cd7cd5eccd364cac7c201b` |
 | BNB Smart Chain | `0x2d92f9e4d8ac7effa9cd7cd5eccd364cac7c201b` |
 | USDT (Ethereum / ERC20) | `0x2d92f9e4d8ac7effa9cd7cd5eccd364cac7c201b` |
 
-## 许可证
+## License
 
-本项目使用 GNU General Public License v3.0（GPLv3）许可证开源。你可以在 GPLv3 许可条款允许的范围内使用、修改和分发本项目。
+This project is licensed under the GNU General Public License v3.0.
