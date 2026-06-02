@@ -37,8 +37,8 @@ use sevenz_rust::{lzma, SevenZWriter};
 
 
 
-const MAX_TEXT_VIEW_BYTES: usize = 50 * 1024 * 1024; // 在线文本查看的最大文件大小。
-const MAX_TEXT_EDIT_BYTES: usize = 20 * 1024 * 1024; // 在线文本编辑的最大文件大小。
+const MAX_TEXT_VIEW_BYTES: usize = 50 * 1024 * 1024; // Maximum file size for online text viewing.
+const MAX_TEXT_EDIT_BYTES: usize = 20 * 1024 * 1024; // Maximum file size for online text editing.
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -124,10 +124,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_state(state.clone());
 
     let server_address = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Rust 云盘运行中：http://{}", server_address);
-    println!("SQLite 数据库：{}", database_path.display());
-    println!("对象目录：{}", state.object_storage_directory.display());
-    println!("临时目录：{}", state.temporary_directory.display());
+    println!("RustDrive is running at: http://{}", server_address);
+    println!("SQLite database: {}", database_path.display());
+    println!("Object directory: {}", state.object_storage_directory.display());
+    println!("Temporary directory: {}", state.temporary_directory.display());
 
     let listener = tokio::net::TcpListener::bind(server_address).await?;
     axum::serve(listener, application).await?;
@@ -137,12 +137,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[derive(Clone)]
 struct AppState {
-    database: SqlitePool, // SQLite 连接池。
-    object_storage_directory: PathBuf, // 文件对象存储目录。
-    temporary_directory: PathBuf, // 7z 压缩临时目录。
+    database: SqlitePool, // SQLite connection pool.
+    object_storage_directory: PathBuf, // File object storage directory.
+    temporary_directory: PathBuf, // Temporary directory for 7z archives.
 }
 
-// 初始化 SQLite 表结构和索引。
+// Initialize SQLite tables and indexes.
 async fn init_database(database: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
@@ -231,15 +231,15 @@ async fn init_database(database: &SqlitePool) -> Result<(), sqlx::Error> {
 
 #[derive(Debug, Clone, Serialize)]
 struct UserDto {
-    id: String, // 用户 ID。
-    username: String, // 登录用户名。
-    root_node_id: String, // 用户根目录节点 ID。
+    id: String, // User ID.
+    username: String, // Login username.
+    root_node_id: String, // User root folder node ID.
 }
 
 #[derive(Debug, Deserialize)]
 struct AuthRequest {
-    username: String, // 用户名。
-    password: String, // 登录或注册密码。
+    username: String, // Username.
+    password: String, // Login or registration password.
 }
 
 #[derive(Debug, Serialize)]
@@ -250,8 +250,8 @@ struct AuthResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 enum NodeKind {
-    File, // 文件节点。
-    Folder, // 文件夹节点。
+    File, // File node.
+    Folder, // Folder node.
 }
 
 impl NodeKind {
@@ -259,25 +259,25 @@ impl NodeKind {
         match value {
             "file" => Ok(NodeKind::File),
             "folder" => Ok(NodeKind::Folder),
-            _ => Err(ApiError::Internal("数据库中的节点类型非法".to_string())),
+            _ => Err(ApiError::Internal("Invalid node type in database".to_string())),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct NodeDto {
-    id: String, // 节点 ID。
-    parent_id: Option<String>, // 父目录 ID。
-    name: String, // 文件或文件夹名称。
-    kind: NodeKind, // 节点类型。
-    size: i64, // 文件大小，文件夹为 0。
-    mime_type: Option<String>, // MIME 类型。
-    created_at: String, // 创建时间。
-    updated_at: String, // 更新时间。
-    shared: bool, // 是否已分享。
-    share_token: Option<String>, // 分享令牌。
-    preview_kind: String, // 预览类型。
-    editable_text: bool, // 是否支持文本编辑。
+    id: String, // Node ID.
+    parent_id: Option<String>, // Parent folder ID.
+    name: String, // File or folder name.
+    kind: NodeKind, // Node type.
+    size: i64, // File size; folders are 0.
+    mime_type: Option<String>, // MIME type.
+    created_at: String, // Created time.
+    updated_at: String, // Updated time.
+    shared: bool, // Whether this node is shared.
+    share_token: Option<String>, // Share token.
+    preview_kind: String, // Preview type.
+    editable_text: bool, // Whether text editing is supported.
 }
 
 #[derive(Debug, Clone)]
@@ -353,10 +353,10 @@ struct BreadcrumbResponse {
 
 #[derive(Debug, Serialize)]
 struct ShareDto {
-    token: String, // 分享令牌。
-    url: String, // 分享访问路径。
-    node: NodeDto, // 被分享的节点。
-    created_at: String, // 分享创建时间。
+    token: String, // Share token.
+    url: String, // Share access path.
+    node: NodeDto, // Shared node.
+    created_at: String, // Share creation time.
 }
 
 #[derive(Debug)]
@@ -417,7 +417,7 @@ async fn health_check() -> Json<serde_json::Value> {
     Json(json!({ "status": "ok" }))
 }
 
-// 注册用户并创建用户根目录。
+// Register a user and create the user's root folder.
 async fn register(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -435,7 +435,7 @@ async fn register(
         .database
         .begin()
         .await
-        .map_err(|error| ApiError::Internal(format!("开启事务失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to start transaction: {}", error)))?;
 
     let user_insert = sqlx::query(
         r#"
@@ -454,10 +454,10 @@ async fn register(
     if let Err(error) = user_insert {
         let msg = error.to_string().to_lowercase();
         if msg.contains("unique") {
-            return Err(ApiError::Conflict("用户名已经存在".to_string()));
+            return Err(ApiError::Conflict("Username already exists".to_string()));
         }
 
-        return Err(ApiError::Internal(format!("创建用户失败：{}", error)));
+        return Err(ApiError::Internal(format!("Failed to create user: {}", error)));
     }
 
     sqlx::query(
@@ -471,23 +471,23 @@ async fn register(
     )
     .bind(&root_node_id)
     .bind(&user_id)
-    .bind("我的云盘")
+    .bind("My Drive")
     .bind(&now)
     .bind(&now)
     .execute(&mut *transaction)
     .await
-    .map_err(|error| ApiError::Internal(format!("创建根目录失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to create root folder: {}", error)))?;
 
     transaction.commit()
         .await
-        .map_err(|error| ApiError::Internal(format!("提交事务失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to commit transaction: {}", error)))?;
 
     let (jar, user) = create_session_and_cookie(&state, jar, &user_id).await?;
 
     Ok((jar, Json(AuthResponse { user })))
 }
 
-// 登录用户并写入 Session Cookie。
+// Log in the user and write the session cookie.
 async fn login(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -503,8 +503,8 @@ async fn login(
     .bind(request.username.trim())
     .fetch_optional(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询用户失败：{}", error)))?
-    .ok_or_else(|| ApiError::Unauthorized("用户名或密码错误".to_string()))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to query user: {}", error)))?
+    .ok_or_else(|| ApiError::Unauthorized("Incorrect username or password".to_string()))?;
 
     let password_hash: String = database_row.get("password_hash");
     verify_password(&request.password, &password_hash)?;
@@ -568,7 +568,7 @@ async fn list_children(
 
     let folder = get_node_record_by_id(&state.database, &user.id, &folder_id).await?;
     if folder.kind != NodeKind::Folder {
-        return Err(ApiError::BadRequest("目标不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Target is not a folder".to_string()));
     }
 
     let database_rows = sqlx::query(
@@ -584,7 +584,7 @@ async fn list_children(
     .bind(&folder_id)
     .fetch_all(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("列目录失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to list directory: {}", error)))?;
 
     let mut items = Vec::new();
 
@@ -607,7 +607,7 @@ async fn create_folder(
 
     let parent = get_node_record_by_id(&state.database, &user.id, &request.parent_id).await?;
     if parent.kind != NodeKind::Folder {
-        return Err(ApiError::BadRequest("父节点不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Parent node is not a folder".to_string()));
     }
 
     ensure_no_name_conflict(&state.database, &user.id, &request.parent_id, &request.name, None).await?;
@@ -632,13 +632,13 @@ async fn create_folder(
     .bind(&now)
     .execute(&state.database)
     .await
-    .map_err(|error| db_conflict_or_internal(error, "创建文件夹失败"))?;
+    .map_err(|error| db_conflict_or_internal(error, "Failed to create folder"))?;
 
     let node = get_node_dto_by_id(&state.database, &user.id, &id).await?;
     Ok(Json(node))
 }
 
-// 上传文件，支持多文件和文件夹路径。
+// Upload files, including multi-file uploads and folder paths.
 async fn upload_file(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -655,7 +655,7 @@ async fn upload_file(
     while let Some(mut field) = multipart
         .next_field()
         .await
-        .map_err(|error| ApiError::BadRequest(format!("multipart 数据错误：{}", error)))?
+        .map_err(|error| ApiError::BadRequest(format!("Multipart data error: {}", error)))?
     {
         let field_name = field.name().unwrap_or("").to_string();
 
@@ -664,7 +664,7 @@ async fn upload_file(
                 let value = field
                     .text()
                     .await
-                    .map_err(|error| ApiError::BadRequest(format!("parent_id 错误：{}", error)))?;
+                    .map_err(|error| ApiError::BadRequest(format!("parent_id error: {}", error)))?;
 
                 validate_uuid_text(&value, "parent_id")?;
                 parent_id = Some(value);
@@ -673,7 +673,7 @@ async fn upload_file(
                 let value = field
                     .text()
                     .await
-                    .map_err(|error| ApiError::BadRequest(format!("name 错误：{}", error)))?;
+                    .map_err(|error| ApiError::BadRequest(format!("name error: {}", error)))?;
 
                 if !value.trim().is_empty() {
                     file_name = Some(value);
@@ -691,24 +691,24 @@ async fn upload_file(
                 let object_path = state.object_storage_directory.join(&key);
                 let mut output = tokio::fs::File::create(&object_path)
                     .await
-                    .map_err(|error| ApiError::Internal(format!("创建文件失败：{}", error)))?;
+                    .map_err(|error| ApiError::Internal(format!("Failed to create file: {}", error)))?;
 
                 while let Some(chunk) = field
                     .chunk()
                     .await
-                    .map_err(|error| ApiError::BadRequest(format!("读取文件分片失败：{}", error)))?
+                    .map_err(|error| ApiError::BadRequest(format!("Failed to read file chunk: {}", error)))?
                 {
                     written_size += chunk.len() as i64;
                     output
                         .write_all(&chunk)
                         .await
-                        .map_err(|error| ApiError::Internal(format!("写入文件失败：{}", error)))?;
+                        .map_err(|error| ApiError::Internal(format!("Failed to write file: {}", error)))?;
                 }
 
                 output
                     .flush()
                     .await
-                    .map_err(|error| ApiError::Internal(format!("刷新文件失败：{}", error)))?;
+                    .map_err(|error| ApiError::Internal(format!("Failed to flush file: {}", error)))?;
 
                 storage_key = Some(key);
             }
@@ -717,11 +717,11 @@ async fn upload_file(
     }
 
     let parent_id =
-        parent_id.ok_or_else(|| ApiError::BadRequest("缺少 parent_id".to_string()))?;
+        parent_id.ok_or_else(|| ApiError::BadRequest("Missing parent_id".to_string()))?;
 
-    let file_name = file_name.ok_or_else(|| ApiError::BadRequest("缺少文件名".to_string()))?;
+    let file_name = file_name.ok_or_else(|| ApiError::BadRequest("Missing file name".to_string()))?;
 
-    let storage_key = storage_key.ok_or_else(|| ApiError::BadRequest("缺少文件内容".to_string()))?;
+    let storage_key = storage_key.ok_or_else(|| ApiError::BadRequest("Missing file content".to_string()))?;
     let object_path = state.object_storage_directory.join(&storage_key);
 
     if let Err(error) = validate_node_name(&file_name) {
@@ -739,7 +739,7 @@ async fn upload_file(
 
     if parent.kind != NodeKind::Folder {
         let _ = tokio::fs::remove_file(&object_path).await;
-        return Err(ApiError::BadRequest("父节点不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Parent node is not a folder".to_string()));
     }
 
     let final_file_name = match resolve_upload_file_name(
@@ -791,7 +791,7 @@ async fn upload_file(
 
     if let Err(error) = insert_result {
         let _ = tokio::fs::remove_file(&object_path).await;
-        return Err(db_conflict_or_internal(error, "上传文件失败"));
+        return Err(db_conflict_or_internal(error, "Failed to upload file"));
     }
 
     let node = get_node_dto_by_id(&state.database, &user.id, &id).await?;
@@ -811,7 +811,7 @@ async fn rename_node(
 
     let node = get_node_record_by_id(&state.database, &user.id, &node_id).await?;
     if node.parent_id.is_none() {
-        return Err(ApiError::BadRequest("不能重命名根目录".to_string()));
+        return Err(ApiError::BadRequest("Cannot rename the root folder".to_string()));
     }
 
     let parent_id = node.parent_id.clone().unwrap();
@@ -840,7 +840,7 @@ async fn rename_node(
         .bind(&user.id)
         .execute(&state.database)
         .await
-        .map_err(|error| db_conflict_or_internal(error, "重命名失败"))?;
+        .map_err(|error| db_conflict_or_internal(error, "Rename failed"))?;
     } else {
         sqlx::query(
             r#"
@@ -855,7 +855,7 @@ async fn rename_node(
         .bind(&user.id)
         .execute(&state.database)
         .await
-        .map_err(|error| db_conflict_or_internal(error, "重命名失败"))?;
+        .map_err(|error| db_conflict_or_internal(error, "Rename failed"))?;
     }
 
     let node = get_node_dto_by_id(&state.database, &user.id, &node_id).await?;
@@ -875,12 +875,12 @@ async fn move_node(
 
     let node = get_node_record_by_id(&state.database, &user.id, &node_id).await?;
     if node.parent_id.is_none() {
-        return Err(ApiError::BadRequest("不能移动根目录".to_string()));
+        return Err(ApiError::BadRequest("Cannot move the root folder".to_string()));
     }
 
     let target = get_node_record_by_id(&state.database, &user.id, &request.new_parent_id).await?;
     if target.kind != NodeKind::Folder {
-        return Err(ApiError::BadRequest("目标不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Target is not a folder".to_string()));
     }
 
     if node.parent_id.as_deref() == Some(request.new_parent_id.as_str()) {
@@ -912,12 +912,12 @@ async fn move_selected_nodes(
     validate_uuid_text(&request.new_parent_id, "new_parent_id")?;
 
     if request.node_ids.is_empty() {
-        return Err(ApiError::BadRequest("请选择要移动的文件或文件夹".to_string()));
+        return Err(ApiError::BadRequest("Please select files or folders to move".to_string()));
     }
 
     let target = get_node_record_by_id(&state.database, &user.id, &request.new_parent_id).await?;
     if target.kind != NodeKind::Folder {
-        return Err(ApiError::BadRequest("目标不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Target is not a folder".to_string()));
     }
 
     let mut moved_items = Vec::new();
@@ -931,7 +931,7 @@ async fn move_selected_nodes(
 
         let node = get_node_record_by_id(&state.database, &user.id, node_id).await?;
         if node.parent_id.is_none() {
-            return Err(ApiError::BadRequest("不能移动根目录".to_string()));
+            return Err(ApiError::BadRequest("Cannot move the root folder".to_string()));
         }
 
         if node.parent_id.as_deref() == Some(request.new_parent_id.as_str()) {
@@ -976,7 +976,7 @@ async fn delete_selected_nodes(
     let user = require_user(&state, &jar).await?;
 
     if request.node_ids.is_empty() {
-        return Err(ApiError::BadRequest("请选择要删除的文件或文件夹".to_string()));
+        return Err(ApiError::BadRequest("Please select files or folders to delete".to_string()));
     }
 
     for node_id in &request.node_ids {
@@ -1022,14 +1022,14 @@ async fn download_selected_nodes(
     let user = require_user(&state, &jar).await?;
 
     if request.node_ids.is_empty() {
-        return Err(ApiError::BadRequest("请选择要下载的文件或文件夹".to_string()));
+        return Err(ApiError::BadRequest("Please select files or folders to download".to_string()));
     }
 
     for node_id in &request.node_ids {
         validate_uuid_text(node_id, "node_id")?;
         let node = get_node_record_by_id(&state.database, &user.id, node_id).await?;
         if node.parent_id.is_none() {
-            return Err(ApiError::BadRequest("不能下载根目录".to_string()));
+            return Err(ApiError::BadRequest("Cannot download the root folder".to_string()));
         }
     }
 
@@ -1078,7 +1078,7 @@ async fn read_text_node(
     }))
 }
 
-// 保存在线编辑文本，统一写回 UTF-8。
+// Save online-edited text and write it back as UTF-8.
 async fn update_text_node(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -1090,23 +1090,23 @@ async fn update_text_node(
     validate_uuid_text(&node_id, "node_id")?;
 
     if request.content.len() > MAX_TEXT_EDIT_BYTES {
-        return Err(ApiError::BadRequest("文本太大，暂不允许在线编辑".to_string()));
+        return Err(ApiError::BadRequest("The text file is too large for online editing".to_string()));
     }
 
     let node = get_node_record_by_id(&state.database, &user.id, &node_id).await?;
 
     if node.kind != NodeKind::File || !is_editable_text_name(&node.name) {
-        return Err(ApiError::BadRequest("该文件类型不支持在线编辑".to_string()));
+        return Err(ApiError::BadRequest("This file type does not support online editing".to_string()));
     }
 
     let storage_key = node
         .storage_key
         .clone()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     tokio::fs::write(state.object_storage_directory.join(storage_key), request.content.as_bytes())
         .await
-        .map_err(|error| ApiError::Internal(format!("保存文本失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("SaveText失败：{}", error)))?;
 
     let updated_at = now_string();
     let size = request.content.as_bytes().len() as i64;
@@ -1126,7 +1126,7 @@ async fn update_text_node(
     .bind(&node_id)
     .execute(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("更新文本元数据失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("更新Text元数据失败：{}", error)))?;
 
     Ok(Json(TextContentResponse {
         id: node.id,
@@ -1149,7 +1149,7 @@ async fn create_share(
 
     let node = get_node_record_by_id(&state.database, &user.id, &node_id).await?;
     if node.parent_id.is_none() {
-        return Err(ApiError::BadRequest("根目录不能分享".to_string()));
+        return Err(ApiError::BadRequest("Root不能Share".to_string()));
     }
 
     if let Some(database_row) = sqlx::query(
@@ -1163,7 +1163,7 @@ async fn create_share(
     .bind(&node_id)
     .fetch_optional(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询分享失败：{}", error)))?
+    .map_err(|error| ApiError::Internal(format!("Failed to query share: {}", error)))?
     {
         let token: String = database_row.get("token");
         let created_at: String = database_row.get("created_at");
@@ -1192,7 +1192,7 @@ async fn create_share(
     .bind(&created_at)
     .execute(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("创建分享失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to create share：{}", error)))?;
 
     let node = get_node_dto_by_id(&state.database, &user.id, &node_id).await?;
 
@@ -1226,7 +1226,7 @@ async fn get_node_share(
     .bind(&node_id)
     .fetch_optional(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询分享失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to query share: {}", error)))?;
 
     if let Some(database_row) = database_row {
         let token: String = database_row.get("token");
@@ -1260,7 +1260,7 @@ async fn cancel_node_share(
         .bind(&node_id)
         .execute(&state.database)
         .await
-        .map_err(|error| ApiError::Internal(format!("取消分享失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to cancel share：{}", error)))?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -1283,7 +1283,7 @@ async fn list_shares(
     .bind(&user.id)
     .fetch_all(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("获取分享列表失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("获取Share列表失败：{}", error)))?;
 
     let mut items = Vec::new();
 
@@ -1315,7 +1315,7 @@ async fn cancel_share_by_token(
         .bind(&token)
         .execute(&state.database)
         .await
-        .map_err(|error| ApiError::Internal(format!("取消分享失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to cancel share：{}", error)))?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -1373,7 +1373,7 @@ async fn public_share_text(
     }))
 }
 
-// 公开分享目录的只读子目录列表。
+// 公开Share目录的只读子目录列表。
 async fn public_share_children(
     State(state): State<AppState>,
     Path((token, folder_id)): Path<(String, String)>,
@@ -1385,7 +1385,7 @@ async fn public_share_children(
 
     let folder = get_node_record_by_id(&state.database, &owner_id, &folder_id).await?;
     if folder.kind != NodeKind::Folder {
-        return Err(ApiError::BadRequest("目标不是文件夹".to_string()));
+        return Err(ApiError::BadRequest("Target is not a folder".to_string()));
     }
 
     let database_rows = sqlx::query(
@@ -1401,7 +1401,7 @@ async fn public_share_children(
     .bind(&folder_id)
     .fetch_all(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("读取分享文件夹失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("读取ShareFolder失败：{}", error)))?;
 
     let mut items = Vec::new();
     for database_row in database_rows {
@@ -1448,7 +1448,7 @@ async fn public_share_selected_download(
     Json(request): Json<SelectedDownloadRequest>,
 ) -> ApiResult<Response> {
     if request.node_ids.is_empty() {
-        return Err(ApiError::BadRequest("请选择要下载的文件或文件夹".to_string()));
+        return Err(ApiError::BadRequest("Please select files or folders to download".to_string()));
     }
 
     let (owner_id, share_root_id, _created_at) = get_share_owner_node(&state.database, &token).await?;
@@ -1467,7 +1467,7 @@ async fn public_share_selected_download(
     .await
 }
 
-// 公开分享文件的只读在线预览。
+// 公开ShareFile的只读在线预览。
 async fn public_share_node_preview(
     State(state): State<AppState>,
     Path((token, node_id)): Path<(String, String)>,
@@ -1482,7 +1482,7 @@ async fn public_share_node_preview(
     preview_file_record(&state, &node, &headers).await
 }
 
-// 公开分享文本文件的只读查看。
+// 公开ShareTextFile的只读View。
 async fn public_share_node_text(
     State(state): State<AppState>,
     Path((token, node_id)): Path<(String, String)>,
@@ -1523,11 +1523,11 @@ async fn download_file_record(state: &AppState, node: &NodeRecord) -> ApiResult<
     let storage_key = node
         .storage_key
         .clone()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     let bytes = tokio::fs::read(state.object_storage_directory.join(storage_key))
         .await
-        .map_err(|error| ApiError::Internal(format!("读取文件失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to read file: {}", error)))?;
 
     build_file_response(
         bytes,
@@ -1546,21 +1546,21 @@ async fn preview_file_record(
     headers: &HeaderMap,
 ) -> ApiResult<Response> {
     if node.kind != NodeKind::File {
-        return Err(ApiError::BadRequest("只有文件可以在线预览".to_string()));
+        return Err(ApiError::BadRequest("只有File可以在线预览".to_string()));
     }
 
     if !is_previewable_name(&node.name) {
-        return Err(ApiError::BadRequest("该文件类型暂不支持在线预览".to_string()));
+        return Err(ApiError::BadRequest("该FileType暂不支持在线预览".to_string()));
     }
 
     let storage_key = node
         .storage_key
         .clone()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     let bytes = tokio::fs::read(state.object_storage_directory.join(storage_key))
         .await
-        .map_err(|error| ApiError::Internal(format!("读取文件失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to read file: {}", error)))?;
 
     build_file_response(
         bytes,
@@ -1575,21 +1575,21 @@ async fn preview_file_record(
 
 async fn read_text_content(state: &AppState, node: &NodeRecord) -> ApiResult<(String, String)> {
     if node.kind != NodeKind::File || !is_editable_text_name(&node.name) {
-        return Err(ApiError::BadRequest("该文件类型不支持文本查看".to_string()));
+        return Err(ApiError::BadRequest("该FileType不支持TextView".to_string()));
     }
 
     if node.size as usize > MAX_TEXT_VIEW_BYTES {
-        return Err(ApiError::BadRequest("文件太大，暂不支持在线查看".to_string()));
+        return Err(ApiError::BadRequest("File太大，暂不支持Online Preview".to_string()));
     }
 
     let storage_key = node
         .storage_key
         .clone()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     let bytes = tokio::fs::read(state.object_storage_directory.join(storage_key))
         .await
-        .map_err(|error| ApiError::Internal(format!("读取文本失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("读取Text失败：{}", error)))?;
 
     let mut detector = EncodingDetector::new(Iso2022JpDetection::Deny);
     detector.feed(&bytes, true);
@@ -1598,7 +1598,7 @@ async fn read_text_content(state: &AppState, node: &NodeRecord) -> ApiResult<(St
 
     if had_errors {
         return Err(ApiError::BadRequest(format!(
-            "文本编码检测为 {}，但解码时出现错误",
+            "Text编码检测为 {}，但解码时出现错误",
             encoding.name()
         )));
     }
@@ -1649,7 +1649,7 @@ fn build_file_response(
             format!("{}; filename=\"{}\"", disposition, safe_name),
         )
         .body(Body::from(bytes))
-        .map_err(|error| ApiError::Internal(format!("构建下载响应失败：{}", error)))
+        .map_err(|error| ApiError::Internal(format!("构建Download响应失败：{}", error)))
 }
 
 fn parse_range_header(headers: &HeaderMap, len: u64) -> Option<(u64, u64)> {
@@ -1697,7 +1697,7 @@ fn parse_range_header(headers: &HeaderMap, len: u64) -> Option<(u64, u64)> {
     Some((start, end))
 }
 
-// 将文件夹压缩为 7z 后下载。
+// 将Folder压缩为 7z 后Download。
 async fn download_folder_as_7z(
     state: &AppState,
     owner_id: &str,
@@ -1783,7 +1783,7 @@ fn build_archive_entries_for_selected_nodes(
         let node = all_nodes
             .iter()
             .find(|candidate| candidate.id == *selected_node_id)
-            .ok_or_else(|| ApiError::NotFound("节点不存在".to_string()))?;
+            .ok_or_else(|| ApiError::NotFound("Node does not exist".to_string()))?;
 
         let mut root_name = sanitize_archive_component(&node.name);
         if used_root_names.contains(&root_name) {
@@ -1843,7 +1843,7 @@ fn collect_archive_entries_recursive(
             let storage_key = node
                 .storage_key
                 .clone()
-                .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+                .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
             entries.push(ArchiveEntry {
                 relative_path: relative_path.to_string(),
@@ -1867,31 +1867,31 @@ fn create_7z_file(
     }
 
     fs::create_dir_all(&staging_directory)
-        .map_err(|error| format!("创建临时目录失败：{}", error))?;
+        .map_err(|error| format!("Create临时目录失败：{}", error))?;
 
     for entry in entries {
         let target_path = staging_directory.join(StdPath::new(&entry.relative_path));
 
         if entry.is_dir {
             fs::create_dir_all(&target_path)
-                .map_err(|error| format!("创建临时目录条目失败：{}", error))?;
+                .map_err(|error| format!("Create临时目录条目失败：{}", error))?;
         } else {
             let source_path = entry
                 .source_path
-                .ok_or_else(|| "7z 文件条目缺少 source_path".to_string())?;
+                .ok_or_else(|| "7z File条目缺少 source_path".to_string())?;
 
             if let Some(parent_directory) = target_path.parent() {
                 fs::create_dir_all(parent_directory)
-                    .map_err(|error| format!("创建临时文件父目录失败：{}", error))?;
+                    .map_err(|error| format!("Create临时File父目录失败：{}", error))?;
             }
 
             fs::copy(&source_path, &target_path)
-                .map_err(|error| format!("复制源文件到临时目录失败：{}", error))?;
+                .map_err(|error| format!("复制源File到临时目录失败：{}", error))?;
         }
     }
 
     let mut sevenz_writer = SevenZWriter::create(&archive_path)
-        .map_err(|error| format!("创建 7z 文件失败：{}", error))?;
+        .map_err(|error| format!("Create 7z File失败：{}", error))?;
 
     sevenz_writer.set_content_methods(vec![
         lzma::LZMA2Options::with_preset(9).into(),
@@ -1899,14 +1899,14 @@ fn create_7z_file(
 
     sevenz_writer
         .push_source_path(&staging_directory, |_| true)
-        .map_err(|error| format!("写入 7z 文件失败：{}", error))?;
+        .map_err(|error| format!("写入 7z File失败：{}", error))?;
 
     sevenz_writer
         .finish()
-        .map_err(|error| format!("完成 7z 压缩失败：{}", error))?;
+        .map_err(|error| format!("完成 7z Compression failed: {}", error))?;
 
     fs::remove_dir_all(&staging_directory)
-        .map_err(|error| format!("删除临时目录失败：{}", error))?;
+        .map_err(|error| format!("Delete临时目录失败：{}", error))?;
 
     Ok(())
 }
@@ -1930,7 +1930,7 @@ async fn create_session_and_cookie(
     .bind(&now)
     .execute(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("创建登录会话失败：{}", error)))?;
+    .map_err(|error| ApiError::Internal(format!("CreateLog in会话失败：{}", error)))?;
 
     let cookie = Cookie::build(("sid", token))
         .path("/")
@@ -1947,7 +1947,7 @@ async fn require_user(state: &AppState, jar: &CookieJar) -> ApiResult<UserDto> {
     let token = jar
         .get("sid")
         .map(|cookie| cookie.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("请先登录".to_string()))?;
+        .ok_or_else(|| ApiError::Unauthorized("请先Log in".to_string()))?;
 
     let database_row = sqlx::query(
         r#"
@@ -1960,8 +1960,8 @@ async fn require_user(state: &AppState, jar: &CookieJar) -> ApiResult<UserDto> {
     .bind(token)
     .fetch_optional(&state.database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询登录会话失败：{}", error)))?
-    .ok_or_else(|| ApiError::Unauthorized("登录状态已失效，请重新登录".to_string()))?;
+    .map_err(|error| ApiError::Internal(format!("查询Log in会话失败：{}", error)))?
+    .ok_or_else(|| ApiError::Unauthorized("Log in状态已失效，请重新Log in".to_string()))?;
 
     Ok(UserDto {
         id: database_row.get("id"),
@@ -1981,7 +1981,7 @@ async fn get_user_by_id(database: &SqlitePool, user_id: &str) -> ApiResult<UserD
     .bind(user_id)
     .fetch_optional(database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询用户失败：{}", error)))?
+    .map_err(|error| ApiError::Internal(format!("Failed to query user: {}", error)))?
     .ok_or_else(|| ApiError::NotFound("用户不存在".to_string()))?;
 
     Ok(UserDto {
@@ -2007,8 +2007,8 @@ async fn get_node_record_by_id(
     .bind(node_id)
     .fetch_optional(database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询节点失败：{}", error)))?
-    .ok_or_else(|| ApiError::NotFound("节点不存在".to_string()))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to query node: {}", error)))?
+    .ok_or_else(|| ApiError::NotFound("Node does not exist".to_string()))?;
 
     row_to_node_record(&database_row)
 }
@@ -2030,8 +2030,8 @@ async fn get_node_dto_by_id(
     .bind(node_id)
     .fetch_optional(database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询节点失败：{}", error)))?
-    .ok_or_else(|| ApiError::NotFound("节点不存在".to_string()))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to query node: {}", error)))?
+    .ok_or_else(|| ApiError::NotFound("Node does not exist".to_string()))?;
 
     row_to_node_dto(&database_row)
 }
@@ -2239,7 +2239,7 @@ async fn move_node_record_to_parent(
             .bind(user_id)
             .execute(&state.database)
             .await
-            .map_err(|error| db_conflict_or_internal(error, "移动失败"))?;
+            .map_err(|error| db_conflict_or_internal(error, "Move failed"))?;
 
             get_node_dto_by_id(&state.database, user_id, &node.id).await
         }
@@ -2249,7 +2249,7 @@ async fn move_node_record_to_parent(
                 .bind(user_id)
                 .execute(&state.database)
                 .await
-                .map_err(|error| ApiError::Internal(format!("合并同名文件失败：{}", error)))?;
+                .map_err(|error| ApiError::Internal(format!("合并同名File失败：{}", error)))?;
 
             if let Some(storage_key) = &node.storage_key {
                 let _ = tokio::fs::remove_file(state.object_storage_directory.join(storage_key)).await;
@@ -2309,10 +2309,10 @@ async fn delete_nodes_for_owner(
         let node = all_nodes
             .iter()
             .find(|candidate| candidate.id == *node_id)
-            .ok_or_else(|| ApiError::NotFound("节点不存在".to_string()))?;
+            .ok_or_else(|| ApiError::NotFound("Node does not exist".to_string()))?;
 
         if node.parent_id.is_none() {
-            return Err(ApiError::BadRequest("不能删除根目录".to_string()));
+            return Err(ApiError::BadRequest("不能DeleteRoot".to_string()));
         }
 
         for id in collect_subtree_ids(&all_nodes, node_id) {
@@ -2333,7 +2333,7 @@ async fn delete_nodes_for_owner(
         .database
         .begin()
         .await
-        .map_err(|error| ApiError::Internal(format!("开启事务失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("Failed to start transaction: {}", error)))?;
 
     for id in &subtree_set {
         sqlx::query("DELETE FROM nodes WHERE id = ? AND user_id = ?")
@@ -2341,13 +2341,13 @@ async fn delete_nodes_for_owner(
             .bind(user_id)
             .execute(&mut *transaction)
             .await
-            .map_err(|error| ApiError::Internal(format!("删除节点失败：{}", error)))?;
+            .map_err(|error| ApiError::Internal(format!("Failed to delete node: {}", error)))?;
     }
 
     transaction
         .commit()
         .await
-        .map_err(|error| ApiError::Internal(format!("提交删除失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("提交Delete failed：{}", error)))?;
 
     for storage_key in storage_keys {
         let _ = tokio::fs::remove_file(state.object_storage_directory.join(storage_key)).await;
@@ -2428,7 +2428,7 @@ async fn same_uploaded_and_existing_content(
     let existing_storage_key = existing_node
         .storage_key
         .as_deref()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     let existing_hash = sha256_path(&state.object_storage_directory.join(existing_storage_key)).await?;
     let uploaded_hash = sha256_path(uploaded_path).await?;
@@ -2448,11 +2448,11 @@ async fn same_file_content(
     let left_storage_key = left
         .storage_key
         .as_deref()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
     let right_storage_key = right
         .storage_key
         .as_deref()
-        .ok_or_else(|| ApiError::Internal("文件缺少 storage_key".to_string()))?;
+        .ok_or_else(|| ApiError::Internal("File缺少 storage_key".to_string()))?;
 
     let left_hash = sha256_path(&state.object_storage_directory.join(left_storage_key)).await?;
     let right_hash = sha256_path(&state.object_storage_directory.join(right_storage_key)).await?;
@@ -2463,7 +2463,7 @@ async fn same_file_content(
 async fn sha256_path(path: &StdPath) -> ApiResult<String> {
     let mut file = tokio::fs::File::open(path)
         .await
-        .map_err(|error| ApiError::Internal(format!("打开文件计算哈希失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("OpenFile计算哈希失败：{}", error)))?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; 64 * 1024];
 
@@ -2471,7 +2471,7 @@ async fn sha256_path(path: &StdPath) -> ApiResult<String> {
         let read_bytes = file
             .read(&mut buffer)
             .await
-            .map_err(|error| ApiError::Internal(format!("读取文件计算哈希失败：{}", error)))?;
+            .map_err(|error| ApiError::Internal(format!("读取File计算哈希失败：{}", error)))?;
 
         if read_bytes == 0 {
             break;
@@ -2558,7 +2558,7 @@ async fn ensure_no_name_conflict(
 
         if Some(found_id.as_str()) != except_id {
             return Err(ApiError::Conflict(
-                "同一目录下已经存在同名文件或文件夹".to_string(),
+                "同一目录下已经存在同名File或Folder".to_string(),
             ));
         }
     }
@@ -2574,7 +2574,7 @@ async fn ensure_not_move_folder_into_descendant(
 ) -> ApiResult<()> {
     if moving_folder_id == target_parent_id {
         return Err(ApiError::BadRequest(
-            "不能把文件夹移动到自己里面".to_string(),
+            "不能把FolderMove到自己里面".to_string(),
         ));
     }
 
@@ -2583,7 +2583,7 @@ async fn ensure_not_move_folder_into_descendant(
     while let Some(id) = current {
         if id == moving_folder_id {
             return Err(ApiError::BadRequest(
-                "不能把文件夹移动到自己的子目录中".to_string(),
+                "不能把FolderMove到自己的子目录中".to_string(),
             ));
         }
 
@@ -2598,7 +2598,7 @@ async fn ensure_not_move_folder_into_descendant(
         .bind(&id)
         .fetch_optional(database)
         .await
-        .map_err(|error| ApiError::Internal(format!("检查移动目标失败：{}", error)))?;
+        .map_err(|error| ApiError::Internal(format!("检查Move目标失败：{}", error)))?;
 
         current = database_row.and_then(|parent_row| parent_row.get::<Option<String>, _>("parent_id"));
     }
@@ -2620,8 +2620,8 @@ async fn get_share_owner_node(
     .bind(token)
     .fetch_optional(database)
     .await
-    .map_err(|error| ApiError::Internal(format!("查询分享失败：{}", error)))?
-    .ok_or_else(|| ApiError::NotFound("分享不存在或已取消".to_string()))?;
+    .map_err(|error| ApiError::Internal(format!("Failed to query share: {}", error)))?
+    .ok_or_else(|| ApiError::NotFound("Share does not exist或已Cancel".to_string()))?;
 
     Ok((
         database_row.get("owner_id"),
@@ -2654,17 +2654,17 @@ async fn ensure_share_node_access(
         .bind(&id)
         .fetch_optional(database)
         .await
-        .map_err(|error| ApiError::Internal(format!("检查分享访问范围失败：{}", error)))?
-        .ok_or_else(|| ApiError::NotFound("节点不存在".to_string()))?;
+        .map_err(|error| ApiError::Internal(format!("检查Share访问范围失败：{}", error)))?
+        .ok_or_else(|| ApiError::NotFound("Node does not exist".to_string()))?;
 
         current = database_row.get::<Option<String>, _>("parent_id");
     }
 
-    Err(ApiError::NotFound("节点不在分享范围内".to_string()))
+    Err(ApiError::NotFound("节点不在Share范围内".to_string()))
 }
 
 
-// 使用 SHA-256 计算密码哈希。
+// 使用 SHA-256 计算Password哈希。
 fn hash_password(password: &str) -> ApiResult<String> {
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
@@ -2676,7 +2676,7 @@ fn verify_password(password: &str, password_hash: &str) -> ApiResult<()> {
     if hash_password(password)? == password_hash {
         Ok(())
     } else {
-        Err(ApiError::Unauthorized("用户名或密码错误".to_string()))
+        Err(ApiError::Unauthorized("Incorrect username or password".to_string()))
     }
 }
 
@@ -2691,7 +2691,7 @@ fn validate_password(_password: &str) -> ApiResult<()> {
 fn validate_node_name(name: &str) -> ApiResult<()> {
     let name = name.trim();
     if name.is_empty() {
-        Err(ApiError::BadRequest("名称不能为空".to_string()))
+        Err(ApiError::BadRequest("Name cannot be empty".to_string()))
     } else if name == "." || name == ".." {
         Err(ApiError::BadRequest("名称非法".to_string()))
     } else if name.contains(['/', '\\']) {
@@ -2714,7 +2714,7 @@ fn db_conflict_or_internal(error: sqlx::Error, prefix: &str) -> ApiError {
     let text = error.to_string().to_lowercase();
 
     if text.contains("unique") {
-        ApiError::Conflict("同一目录下已经存在同名文件或文件夹".to_string())
+        ApiError::Conflict("同一目录下已经存在同名File或Folder".to_string())
     } else {
         ApiError::Internal(format!("{}：{}", prefix, error))
     }
@@ -2849,7 +2849,7 @@ const INDEX_HTML: &str = r###"
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>Rust 橘红云盘</title>
+  <title>RustDrive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
@@ -3300,18 +3300,18 @@ const INDEX_HTML: &str = r###"
   <section id="auth" class="auth-page hidden">
     <div class="auth-card-wrap">
       <div class="auth-card">
-        <h2 id="authTitle">登录</h2>
+        <h2 id="authTitle">Log in</h2>
         <div class="field">
-          <label>用户名</label>
+          <label>Username</label>
           <input id="username" autocomplete="username" autofocus />
         </div>
         <div class="field">
-          <label>密码</label>
+          <label>Password</label>
           <input id="password" type="password" autocomplete="current-password" onkeydown="authKey(event)" />
         </div>
         <div class="auth-actions">
-          <button id="authMainBtn" onclick="submitAuth()">登录</button>
-          <button class="green" onclick="toggleAuthPage()" id="authSwitchBtn">注册</button>
+          <button id="authMainBtn" onclick="submitAuth()">Log in</button>
+          <button class="green" onclick="toggleAuthPage()" id="authSwitchBtn">Register</button>
         </div>
       </div>
     </div>
@@ -3319,11 +3319,11 @@ const INDEX_HTML: &str = r###"
 
   <section id="application" class="application-shell hidden">
     <nav class="topbar">
-      <div class="brand"><span class="brand-mark">云</span><span>橘红云盘</span></div>
+      <div class="brand"><span class="brand-mark">云</span><span>橘红Drive</span></div>
       <div id="crumbs" class="crumbs"></div>
       <div class="userbar">
         <span id="whoami"></span>
-        <button class="green small" onclick="logout()">退出</button>
+        <button class="green small" onclick="logout()">Log out</button>
       </div>
     </nav>
 
@@ -3338,22 +3338,22 @@ const INDEX_HTML: &str = r###"
   <input id="folderInput" type="file" multiple webkitdirectory directory hidden onchange="uploadFolderSelected(this.files)" />
   <div id="menu" class="menu"></div>
   <div id="selectionBar" class="selection-bar">
-    <span id="selectionText" class="selection-text">已选择 0 项</span>
-    <button class="green small" onclick="downloadSelectedNodes()">下载为 7z</button>
-    <button class="small" onclick="deleteSelectedNodes()">删除</button>
-    <button class="green small" onclick="clearSelection()">取消选择</button>
+    <span id="selectionText" class="selection-text">Selected 0 项</span>
+    <button class="green small" onclick="downloadSelectedNodes()">Download as 7z</button>
+    <button class="small" onclick="deleteSelectedNodes()">Delete</button>
+    <button class="green small" onclick="clearSelection()">Clear Selection</button>
   </div>
   <div id="dragSelectionBox" class="drag-selection-box"></div>
   <div id="toast" class="toast"></div>
 
   <script>
     let authMode = location.pathname === "/register" ? "register" : "login";
-    let currentUser = null; // 当前登录用户。
-    let rootId = null; // 当前用户根目录 ID。
+    let currentUser = null; // 当前Log in用户。
+    let rootId = null; // 当前用户Root ID。
     let currentFolderId = null; // 当前正在浏览的目录 ID。
-    let currentFolderName = "我的云盘";
+    let currentFolderName = "My Drive";
     let selectedNode = null; // 右键菜单当前选中的节点。
-    let selectedNodeIds = new Set(); // 多选文件和文件夹的 ID 集合。
+    let selectedNodeIds = new Set(); // 多选File和Folder的 ID 集合。
     let draggedNodeIds = []; // 当前拖拽中的节点 ID 列表。
     let isBoxSelecting = false; // 是否正在使用鼠标框选。
     let boxSelectStartX = 0; // 框选开始位置 X。
@@ -3397,9 +3397,9 @@ const INDEX_HTML: &str = r###"
 
     function applyAuthMode() {
       const isRegister = authMode === "register";
-      document.getElementById("authTitle").textContent = isRegister ? "注册" : "登录";
-      document.getElementById("authMainBtn").textContent = isRegister ? "注册" : "登录";
-      document.getElementById("authSwitchBtn").textContent = isRegister ? "返回登录" : "注册";
+      document.getElementById("authTitle").textContent = isRegister ? "Register" : "Log in";
+      document.getElementById("authMainBtn").textContent = isRegister ? "Register" : "Log in";
+      document.getElementById("authSwitchBtn").textContent = isRegister ? "BackLog in" : "Register";
       history.replaceState(null, "", isRegister ? "/register" : "/login");
     }
 
@@ -3486,7 +3486,7 @@ const INDEX_HTML: &str = r###"
         grid.innerHTML = `
           <div class="empty">
             <div>
-              <h3>这个文件夹还是空的</h3>
+              <h3>这个Folder还是空的</h3>
             </div>
           </div>`;
         return;
@@ -3539,7 +3539,7 @@ const INDEX_HTML: &str = r###"
 
         card.innerHTML = `
           <button class="more" title="更多操作">⋯</button>
-          ${node.shared ? '<div class="badge">分享</div>' : ''}
+          ${node.shared ? '<div class="badge">Share</div>' : ''}
           <div class="file-icon">${iconFor(node)}</div>
           <div class="card-name">${escapeHtml(node.name)}</div>
           <div class="card-meta">${metaFor(node)}</div>
@@ -3564,7 +3564,7 @@ const INDEX_HTML: &str = r###"
       const selectionBar = document.getElementById("selectionBar");
       const selectionText = document.getElementById("selectionText");
       if (selectionBar && selectionText) {
-        selectionText.textContent = `已选择 ${selectedNodeIds.size} 项`;
+        selectionText.textContent = `Selected ${selectedNodeIds.size} 项`;
         selectionBar.style.display = selectedNodeIds.size > 0 ? "flex" : "none";
       }
     }
@@ -3577,7 +3577,7 @@ const INDEX_HTML: &str = r###"
     async function downloadSelectedNodes() {
       const ids = Array.from(selectedNodeIds);
       if (!ids.length) return;
-      toast("正在生成 7z 压缩包，请等待下载开始...");
+      toast("正在生成 7z 压缩包，请等待Download开始...");
       try {
         const response = await fetch("/api/nodes/download-selected", {
           method: "POST",
@@ -3597,7 +3597,7 @@ const INDEX_HTML: &str = r###"
     async function deleteSelectedNodes() {
       const ids = Array.from(selectedNodeIds);
       if (!ids.length) return;
-      const ok = confirm(`删除已选 ${ids.length} 个文件或文件夹？`);
+      const ok = confirm(`Delete已选 ${ids.length} 个File或Folder？`);
       if (!ok) return;
       try {
         await api("/api/nodes/delete-selected", {
@@ -3623,7 +3623,7 @@ const INDEX_HTML: &str = r###"
         selectedNodeIds.clear();
         updateSelectionBar();
         await openFolder(currentFolderId);
-        toast("移动完成");
+        toast("Move complete");
       } catch (error) { alert(error.message); }
     }
 
@@ -3720,8 +3720,8 @@ const INDEX_HTML: &str = r###"
     }
 
     function metaFor(node) {
-      if (node.kind === "folder") return "文件夹";
-      const label = node.preview_kind === "text" ? "文本" : node.preview_kind === "audio" ? "音频" : node.preview_kind === "video" ? "视频" : "文件";
+      if (node.kind === "folder") return "Folder";
+      const label = node.preview_kind === "text" ? "Text" : node.preview_kind === "audio" ? "Audio" : node.preview_kind === "video" ? "Video" : "File";
       return `${label} · ${formatSize(node.size)}`;
     }
 
@@ -3731,31 +3731,31 @@ const INDEX_HTML: &str = r###"
       const menuItems = [];
       const isMultiSelectionMenu = selectedNode && selectedNodeIds.size > 1 && selectedNodeIds.has(selectedNode.id);
       if (isMultiSelectionMenu) {
-        menuItems.push(["⬇️", "下载为 7z", downloadSelectedNodes]);
-        menuItems.push(["🗑️", "删除文件", deleteSelectedNodes]);
+        menuItems.push(["⬇️", "Download as 7z", downloadSelectedNodes]);
+        menuItems.push(["🗑️", "DeleteFile", deleteSelectedNodes]);
       } else if (!selectedNode) {
-        menuItems.push(["⬆️", "上传文件", uploadFromButton, "green"]);
-        menuItems.push(["📂", "上传文件夹", uploadFolderFromButton, "green"]);
-        menuItems.push(["📁", "新建文件夹", newFolder]);
-        menuItems.push(["🔗", "分享管理", openShareManage, "green"]);
+        menuItems.push(["⬆️", "Upload Files", uploadFromButton, "green"]);
+        menuItems.push(["📂", "Upload Folder", uploadFolderFromButton, "green"]);
+        menuItems.push(["📁", "New Folder", newFolder]);
+        menuItems.push(["🔗", "Share Management", openShareManage, "green"]);
       } else if (selectedNode.kind === "file") {
-        menuItems.push(["⬇️", "下载", menuDownload]);
+        menuItems.push(["⬇️", "Download", menuDownload]);
         if (selectedNode.preview_kind !== "none") menuItems.push(["👁️", "在线预览", () => openPreview(selectedNode), "green"]);
-        menuItems.push(["🔗", "创建/复制分享链接", menuShare, "green"]);
-        if (selectedNode.shared) menuItems.push(["🔒", "取消分享", menuCancelShare, "green"]);
-        menuItems.push(["✏️", "重命名", menuRename]);
-        menuItems.push(["🗑️", "删除", menuDelete]);
+        menuItems.push(["🔗", "Create/复制Share链接", menuShare, "green"]);
+        if (selectedNode.shared) menuItems.push(["🔒", "Cancel Share", menuCancelShare, "green"]);
+        menuItems.push(["✏️", "Rename", menuRename]);
+        menuItems.push(["🗑️", "Delete", menuDelete]);
       } else {
-        menuItems.push(["📂", "打开", () => openFolder(selectedNode.id), "green"]);
-        menuItems.push(["⬇️", "下载为 7z", menuDownload]);
-        menuItems.push(["🔗", "创建/复制分享链接", menuShare, "green"]);
-        if (selectedNode.shared) menuItems.push(["🔒", "取消分享", menuCancelShare, "green"]);
-        menuItems.push(["✏️", "重命名", menuRename]);
-        menuItems.push(["🗑️", "删除", menuDelete]);
+        menuItems.push(["📂", "Open", () => openFolder(selectedNode.id), "green"]);
+        menuItems.push(["⬇️", "Download as 7z", menuDownload]);
+        menuItems.push(["🔗", "Create/复制Share链接", menuShare, "green"]);
+        if (selectedNode.shared) menuItems.push(["🔒", "Cancel Share", menuCancelShare, "green"]);
+        menuItems.push(["✏️", "Rename", menuRename]);
+        menuItems.push(["🗑️", "Delete", menuDelete]);
       }
       menu.innerHTML = "";
       menuItems.forEach((menuItem, itemIndex) => {
-        if (itemIndex > 0 && (menuItem[1] === "重命名" || menuItem[1] === "删除")) {
+        if (itemIndex > 0 && (menuItem[1] === "Rename" || menuItem[1] === "Delete")) {
           const dividerElement = document.createElement("div");
           dividerElement.className = "menu-divider";
           menu.appendChild(dividerElement);
@@ -3782,7 +3782,7 @@ const INDEX_HTML: &str = r###"
     function openShareManage() { window.open("/shares", "_blank"); }
 
     async function newFolder() {
-      const name = prompt("文件夹名称：");
+      const name = prompt("Folder名称：");
       if (!name) return;
       try {
         await api("/api/folders", {
@@ -3796,7 +3796,7 @@ const INDEX_HTML: &str = r###"
 
     function menuDownload() {
       if (!selectedNode) return;
-      if (selectedNode.kind === "folder") toast("正在压缩文件夹，请等待下载开始...");
+      if (selectedNode.kind === "folder") toast("正在压缩Folder，请等待Download开始...");
       location.href = `/api/nodes/${selectedNode.id}/download`;
     }
 
@@ -3810,8 +3810,8 @@ const INDEX_HTML: &str = r###"
       try {
         const responseData = await api(`/api/nodes/${selectedNode.id}/share`, { method: "POST" });
         const url = location.origin + responseData.url;
-        try { await navigator.clipboard.writeText(url); toast("分享链接已复制"); }
-        catch (_) { prompt("分享链接：", url); }
+        try { await navigator.clipboard.writeText(url); toast("Share链接已复制"); }
+        catch (_) { prompt("Share链接：", url); }
         await openFolder(currentFolderId);
       } catch (error) { alert(error.message); }
     }
@@ -3820,7 +3820,7 @@ const INDEX_HTML: &str = r###"
       if (!selectedNode) return;
       try {
         await api(`/api/nodes/${selectedNode.id}/share`, { method: "DELETE" });
-        toast("已取消分享");
+        toast("已Cancel Share");
         await openFolder(currentFolderId);
       } catch (error) { alert(error.message); }
     }
@@ -3841,7 +3841,7 @@ const INDEX_HTML: &str = r###"
 
     async function menuDelete() {
       if (!selectedNode) return;
-      const ok = confirm(selectedNode.kind === "folder" ? `删除文件夹「${selectedNode.name}」及其所有内容？` : `删除文件「${selectedNode.name}」？`);
+      const ok = confirm(selectedNode.kind === "folder" ? `DeleteFolder「${selectedNode.name}」及其所有内容？` : `DeleteFile「${selectedNode.name}」？`);
       if (!ok) return;
       try {
         await api(`/api/nodes/${selectedNode.id}`, { method: "DELETE" });
@@ -3866,13 +3866,13 @@ const INDEX_HTML: &str = r###"
       if (!files || !files.length) return;
       for (const file of files) {
         try {
-          toast("上传中：" + file.name);
+          toast("Uploading: " + file.name);
           await uploadOneFile(file, currentFolderId, file.name);
         } catch (error) { alert(`上传 ${file.name} 失败：${error.message}`); }
       }
       document.getElementById("fileInput").value = "";
       await openFolder(currentFolderId);
-      toast("上传完成");
+      toast("Upload complete");
     }
 
     async function uploadFolderSelected(files) {
@@ -3909,14 +3909,14 @@ const INDEX_HTML: &str = r###"
           for (const folderName of parts) {
             targetFolderId = await ensureFolder(targetFolderId, folderName);
           }
-          toast("上传中：" + relativePath);
+          toast("Uploading: " + relativePath);
           await uploadOneFile(file, targetFolderId, fileName);
         } catch (error) { alert(`上传 ${relativePath} 失败：${error.message}`); }
       }
 
       document.getElementById("folderInput").value = "";
       await openFolder(currentFolderId);
-      toast("文件夹上传完成");
+      toast("Folder upload complete");
     }
 
     async function moveNode(nodeId, targetFolderId) {
@@ -3927,7 +3927,7 @@ const INDEX_HTML: &str = r###"
           body: JSON.stringify({ new_parent_id: targetFolderId }),
         });
         await openFolder(currentFolderId);
-        toast("移动完成");
+        toast("Move complete");
       } catch (error) { alert(error.message); }
     }
 
@@ -3954,7 +3954,7 @@ const VIEW_HTML: &str = r###"
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>在线查看</title>
+  <title>Online Preview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -4024,12 +4024,12 @@ const VIEW_HTML: &str = r###"
 </head>
 <body>
   <div class="bar">
-    <div id="title" class="title">在线查看</div>
+    <div id="title" class="title">Online Preview</div>
     <div id="meta" class="meta"></div>
-    <button id="downloadBtn">下载</button>
-    <button id="saveBtn" class="primary" style="display:none;">保存</button>
+    <button id="downloadBtn">Download</button>
+    <button id="saveBtn" class="primary" style="display:none;">Save</button>
   </div>
-  <div id="root" class="message">正在打开...</div>
+  <div id="root" class="message">Opening...</div>
 
   <script>
     const nodeId = location.pathname.split("/").pop();
@@ -4070,7 +4070,7 @@ const VIEW_HTML: &str = r###"
           root.className = "viewer";
           root.innerHTML = `<video controls autoplay src="/api/nodes/${node.id}/preview"></video>`;
         } else {
-          document.getElementById("root").textContent = "该文件类型暂不支持在线查看。";
+          document.getElementById("root").textContent = "该FileType暂不支持Online Preview。";
         }
       } catch (error) { document.getElementById("root").textContent = error.message; }
     }
@@ -4082,7 +4082,7 @@ const VIEW_HTML: &str = r###"
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
         });
-        document.getElementById("meta").textContent = `已保存 · 编码：${responseData.encoding}`;
+        document.getElementById("meta").textContent = `已Save · 编码：${responseData.encoding}`;
       } catch (error) { alert(error.message); }
     }
     init();
@@ -4096,7 +4096,7 @@ const SHARES_MANAGE_HTML: &str = r###"
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>分享管理</title>
+  <title>Share Management</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -4160,14 +4160,14 @@ const SHARES_MANAGE_HTML: &str = r###"
 </head>
 <body>
   <nav class="topbar">
-    <div class="brand">橘红云盘 · 分享管理</div>
-    <button class="green" onclick="location.href='/'">返回云盘</button>
+    <div class="brand">RustDrive · Share Management</div>
+    <button class="green" onclick="location.href='/'">Back to Drive</button>
   </nav>
   <main>
     <section class="panel">
       <div class="head">
-        <h1>分享管理</h1>
-        <div id="summary" class="sub">正在加载...</div>
+        <h1>Share Management</h1>
+        <div id="summary" class="sub">Loading...</div>
       </div>
       <div id="list" class="list"></div>
     </section>
@@ -4187,10 +4187,10 @@ const SHARES_MANAGE_HTML: &str = r###"
       const list = document.getElementById('list');
       try {
         const responseData = await api('/api/shares');
-        document.getElementById('summary').textContent = `${responseData.items.length} 个分享`;
+        document.getElementById('summary').textContent = `${responseData.items.length} 个Share`;
         list.innerHTML = '';
         if (!responseData.items.length) {
-          list.innerHTML = '<div class="empty"><div>暂无分享<br><span style="font-weight:500;font-size:13px;">回到云盘右键文件或文件夹即可创建分享。</span></div></div>';
+          list.innerHTML = '<div class="empty"><div>No shares yet<br><span style="font-weight:500;font-size:13px;">回到Drive右键File或Folder即可CreateShare。</span></div></div>';
           return;
         }
         responseData.items.forEach(item => {
@@ -4201,21 +4201,21 @@ const SHARES_MANAGE_HTML: &str = r###"
             <div>
               <div class="name-line">
                 <span class="name">${iconFor(item.node)} ${escapeHtml(item.node.name)}</span>
-                <span class="meta">${item.node.kind === 'folder' ? '文件夹' : '文件'} · ${formatDate(item.created_at)}</span>
+                <span class="meta">${item.node.kind === 'folder' ? 'Folder' : 'File'} · ${formatDate(item.created_at)}</span>
               </div>
             </div>
             <div class="actions">
-              <button class="green" data-act="open">打开</button>
-              <button class="green" data-act="copy">复制链接</button>
-              <button data-act="cancel">取消分享</button>
+              <button class="green" data-act="open">Open</button>
+              <button class="green" data-act="copy">Copy Link</button>
+              <button data-act="cancel">Cancel Share</button>
             </div>`;
           div.querySelector('[data-act="open"]').onclick = () => window.open(item.url, '_blank');
           div.querySelector('[data-act="copy"]').onclick = async () => {
             try { await navigator.clipboard.writeText(url); alert('已复制'); }
-            catch (_) { prompt('分享链接：', url); }
+            catch (_) { prompt('Share链接：', url); }
           };
           div.querySelector('[data-act="cancel"]').onclick = async () => {
-            if (!confirm('确定取消这个分享？')) return;
+            if (!confirm('OKCancel这个Share？')) return;
             await api(`/api/shares/${item.token}`, { method: 'DELETE' });
             await loadShares();
           };
@@ -4246,7 +4246,7 @@ const SHARE_HTML: &str = r###"
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>分享浏览</title>
+  <title>Shared View</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -4450,18 +4450,18 @@ const SHARE_HTML: &str = r###"
 </head>
 <body>
   <nav class="topbar">
-    <div class="brand">橘红云盘 · 只读分享</div>
+    <div class="brand">RustDrive · Read-only Share</div>
     <div id="crumbs" class="crumbs"></div>
-    <button class="green" onclick="downloadCurrent()">下载</button>
+    <button class="green" onclick="downloadCurrent()">Download</button>
   </nav>
   <main class="main">
     <div id="content" class="grid"></div>
   </main>
   <div id="shareMenu" class="menu"></div>
   <div id="shareSelectionBar" class="selection-bar">
-    <span id="shareSelectionText">已选择 0 项</span>
-    <button class="green" onclick="downloadSelectedSharedNodes()">下载为 7z</button>
-    <button onclick="clearShareSelection()">取消选择</button>
+    <span id="shareSelectionText">Selected 0 项</span>
+    <button class="green" onclick="downloadSelectedSharedNodes()">Download as 7z</button>
+    <button onclick="clearShareSelection()">Clear Selection</button>
   </div>
   <div id="shareDragSelectionBox" class="drag-selection-box"></div>
 
@@ -4535,7 +4535,7 @@ const SHARE_HTML: &str = r###"
       } else if (node.preview_kind === "video") {
         body.innerHTML = `<video controls autoplay src="/api/public/shares/${token}/nodes/${node.id}/preview"></video>`;
       } else {
-        body.innerHTML = '<div class="empty">该文件类型暂不支持在线预览，可以下载查看。</div>';
+        body.innerHTML = '<div class="empty">该FileType暂不支持在线预览，可以DownloadView。</div>';
       }
     }
 
@@ -4565,7 +4565,7 @@ const SHARE_HTML: &str = r###"
       content.className = "grid";
       content.innerHTML = "";
       if (!items.length) {
-        content.innerHTML = '<div class="empty">这个文件夹是空的</div>';
+        content.innerHTML = '<div class="empty">这个Folder是空的</div>';
         return;
       }
       items.forEach(node => {
@@ -4614,10 +4614,10 @@ const SHARE_HTML: &str = r###"
     }
 
     function previewMenuText(node) {
-      if (node.kind === "folder") return "打开/查看";
+      if (node.kind === "folder") return "Open/View";
       if (node.preview_kind === "audio") return "在线播放";
       if (node.preview_kind === "video") return "在线播放";
-      if (node.preview_kind === "text") return "在线查看";
+      if (node.preview_kind === "text") return "Online Preview";
       return "在线预览";
     }
 
@@ -4636,7 +4636,7 @@ const SHARE_HTML: &str = r###"
       const selectionText = document.getElementById("shareSelectionText");
       if (!selectionBar || !selectionText) return;
       const count = selectedShareNodeIds.size;
-      selectionText.textContent = `已选择 ${count} 项`;
+      selectionText.textContent = `Selected ${count} 项`;
       selectionBar.style.display = count > 0 ? "flex" : "none";
     }
 
@@ -4652,7 +4652,7 @@ const SHARE_HTML: &str = r###"
       const menuItemElement = document.createElement("div");
       menuItemElement.className = "menu-row";
       if (selectedShareNodeIds.size > 1 && selectedShareNodeIds.has(node.id)) {
-        menuItemElement.innerHTML = `<span>⬇️</span><span>下载为 7z</span>`;
+        menuItemElement.innerHTML = `<span>⬇️</span><span>Download as 7z</span>`;
         menuItemElement.onclick = () => {
           shareMenu.style.display = "none";
           downloadSelectedSharedNodes();
@@ -4778,8 +4778,8 @@ const SHARE_HTML: &str = r###"
     }
 
     function metaFor(node) {
-      if (node.kind === "folder") return "文件夹";
-      const label = node.preview_kind === "text" ? "文本" : node.preview_kind === "audio" ? "音频" : node.preview_kind === "video" ? "视频" : "文件";
+      if (node.kind === "folder") return "Folder";
+      const label = node.preview_kind === "text" ? "Text" : node.preview_kind === "audio" ? "Audio" : node.preview_kind === "video" ? "Video" : "File";
       return `${label} · ${formatSize(node.size)}`;
     }
     function iconFor(node) {
