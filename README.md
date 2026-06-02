@@ -244,3 +244,7 @@ If RustDrive is useful to you, sponsorship is welcome and appreciated. It helps 
 ## License
 
 This project is licensed under the GNU General Public License v3.0.
+
+
+The author will continue to maintain this project. If you have any questions, please open an issue.
+
